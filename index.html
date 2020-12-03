@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>9주차 과제</title>
+	<link rel="stylesheet" href="css/banner.css">
+	<link rel="stylesheet" href="css/style.css">
+
+	<style type="text/css">
+		table {
+			width: 100%;
+			border: 1px solid #444444;
+			border-collapse: collapse;
+		}
+
+		th,
+		td {
+			border: 1px solid #444444;
+		}
+
+		tr>td:first-child {
+			text-align: center;
+		}
+
+		div#wrap {
+			display: none;
+			border: 1px solid #DDDDDD;
+			width: 500px;
+			margin-top: 5px;
+			padding: 5px;
+		}
+
+		div#wrap>div {
+			margin-top: 10px;
+			margin-left: 5px;
+			margin-right: 5px;
+			margin-bottom: 5px;
+		}
+
+		div#wrap a:link {
+			color: #000000;
+			text-decoration: none;
+		}
+
+		div#wrap a:hover {
+			color: #0000FF;
+			text-decoration: underline;
+		}
+
+		div#totoalOutcome {
+			display: none;
+		}
+
+		#closeBtn {
+			float: right;
+			margin-top: -5px;
+			margin-right: -5px;
+		}
+
+		#searchAddr {
+			width: 380px;
+		}
+
+		#zipCode {
+			text-align: center;
+		}
+
+		#address,
+		#detail {
+			width: 500px;
+		}
+
+		li {
+			margin-left: 10px;
+		}
+	</style>
+	<script type="text/JavaScript" src="https://code.jquery.com/jquery-1.12.4.js"></script>
+	<script language="javascript">
+
+		function enterSearch() {
+			var evt_code = (window.netscape) ? event.which : event.keyCode;
+			if (evt_code == 13) {
+				event.keyCode = 0;
+				getAddr();
+			}
+		}
+
+		function getAddr() {
+
+			// 적용예 (api 호출 전에 검색어 체크)
+			let keyword = document.getElementById("searchAddr");
+			if (!checkSearchedWord(keyword)) {
+				return;
+			}
+
+			jQuery.ajax({
+				url: "http://www.juso.go.kr/addrlink/addrLinkApiJsonp.do"
+				, type: "POST"
+				, data: {
+					confmKey: "devU01TX0FVVEgyMDIwMTIwMTIyMTMzMDExMDQ4ODE="
+					, currentPage: document.getElementById("currentPage").value
+					, countPerPage: document.getElementById("countPerPage").value
+					, keyword: keyword.value
+					, resultType: "json"
+				}
+				, dataType: "jsonp"
+				, crossDomain: true
+				, success: function (jsonStr) {
+
+					jQuery("#list").html("");
+					let errCode = jsonStr.results.common.errorCode;
+					let errDesc = jsonStr.results.common.errorMessage;
+
+					if (errCode == "0") {
+						if (jsonStr != null) {
+							makeListJson(jsonStr);
+						}
+					} else {
+						alert(errDesc);
+					}
+				}
+				, error: function (xhr, status, error) {
+					alert("에러발생");
+				}
+			});
+		}
+
+		function makeListJson(jsonStr) {
+
+			let htmlStr = "<thead><tr><th style='width:70px;'>우편번호</th><th>주소</th></tr></thead><tbody>";
+
+			if (jsonStr.results.common.totalCount > 0) {
+
+				jQuery("#totoalOutcome").css("display", "block");
+				jQuery("#totalCnt").html(jsonStr.results.common.totalCount);
+
+				jQuery(jsonStr.results.juso).each(function () {
+
+					let zipNo = this.zipNo;                  // 우편번호
+					let roadAddr = this.roadAddr;        // 도로명 주소
+					let jibunAddr = this.jibunAddr;       // 지번 주소
+
+					htmlStr += "<tr>";
+					htmlStr += "<td>";
+					htmlStr += "<a href='javascript:;' onClick='inputTextAddress(\"" + zipNo + "\", \"" + roadAddr + "\");'>";
+					htmlStr += zipNo;
+					htmlStr += "</a>";
+					htmlStr += "</td>";
+					htmlStr += "<td>";
+					htmlStr += "<a href='javascript:;' onClick='inputTextAddress(\"" + zipNo + "\", \"" + roadAddr + "\");'>";
+					htmlStr += "도로명 : " + roadAddr;
+					htmlStr += "</a>";
+					htmlStr += "<br/>";
+					htmlStr += "<a href='javascript:;' onClick='inputTextAddress(\"" + zipNo + "\", \"" + jibunAddr + "\");'>";
+					htmlStr += "지번 : " + jibunAddr;
+					htmlStr += "</a>";
+					htmlStr += "</td>";
+					htmlStr += "</tr>";
+				});
+
+				pageMake(jsonStr);
+
+			} else {
+				htmlStr += "<tr><td colspan='2'>조회된 데이터가 않습니다.<br/>다시 검색하여 주시기 바랍니다.</td></tr>";
+			}
+
+			htmlStr += "</tbody>";
+			jQuery("#list").html(htmlStr);
+		}
+
+		function inputTextAddress(zipCode, address) {
+			document.getElementById("zipCode").value = zipCode;
+			document.getElementById("address").value = address;
+		}
+
+		function addressWindowOpen() {
+			jQuery("#wrap").slideDown();
+			jQuery("#searchAddr").focus();
+		}
+
+		function addressWindowClose() {
+			jQuery("#wrap").slideUp();
+			jQuery("#searchAddr").val("");
+			jQuery("#totoalOutcome").css("display", "none");
+			jQuery("#list").empty();
+			jQuery("#pagingList").empty();
+			jQuery("#currentPage").val("1");
+		}
+
+		function checkSearchedWord(obj) {
+
+			if (obj.value.length > 0) {
+
+				// 특수문자 제거
+				var expText = /[%=><]/;
+
+				if (expText.test(obj.value) == true) {
+					alert("특수문자를 입력 할수 없습니다.");
+					obj.value = obj.value.split(expText).join("");
+					return false;
+				}
+
+				// 특정문자열(sql예약어의 앞뒤공백포함) 제거
+				var sqlArray = new Array(
+					"OR", "SELECT", "INSERT", "DELETE", "UPDATE", "CREATE"
+					, "DROP", "EXEC", "UNION", "FETCH", "DECLARE", "TRUNCATE"
+				);
+				// sql 예약어
+
+				var regex = "";
+				for (var num = 0; num < sqlArray.length; num++) {
+
+					regex = new RegExp(sqlArray[num], "gi");
+
+					if (regex.test(obj.value)) {
+						alert("\"" + sqlArray[num] + "\"와(과) 같은 특정문자로 검색할 수 없습니다.");
+						obj.value = obj.value.replace(regex, "");
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+
+		function pageMake(jsonStr) {
+
+			var total = jsonStr.results.common.totalCount;				// 총건수
+			var pageNum = document.getElementById("currentPage").value;	// 현재페이지
+			var pageBlock = Number(document.getElementById("countPerPage").value);	// 페이지당 출력 개수
+			var paggingStr = "";
+
+			// 검색 갯수가 페이지당 출력갯수보다 작으면 페이징을 나타내지 않는다.
+			if (total > pageBlock) {
+
+				var totalPages = Math.floor((total - 1) / pageNum) + 1;
+				var firstPage = Math.floor((pageNum - 1) / pageBlock) * pageBlock + 1;
+
+				if (firstPage <= 0) { firstPage = 1; };
+
+				var lastPage = (firstPage - 1) + pageBlock;
+
+				if (lastPage > totalPages) { lastPage = totalPages; };
+				var nextPage = lastPage + 1;
+				var prePage = firstPage - pageBlock;
+
+				if (firstPage > pageBlock) {
+					paggingStr += "<a href='javascript:;' onClick='goPage(" + prePage + ");'>◀</a>";
+					paggingStr += "&nbsp;";
+				}
+
+				for (let num = firstPage; lastPage >= num; num++) {
+					if (pageNum == num) {
+						paggingStr += "<a style='font-weight:bold;color:#0000FF;' href='javascript:;'>" + num + "</a>";
+						paggingStr += "&nbsp;";
+					} else {
+						paggingStr += "<a href='javascript:;' onClick='goPage(" + num + ");'>" + num + "</a>";
+						paggingStr += "&nbsp;";
+					}
+				}
+
+				if (lastPage < totalPages) {
+					paggingStr += "<a href='javascript:;' onClick='goPage(" + nextPage + ");'>▶</a>";
+				}
+			}
+
+			jQuery("#pagingList").html(paggingStr);
+		}
+
+		function goPage(pageNum) {
+			document.getElementById("currentPage").value = pageNum;
+			getAddr();
+		}
+	</script>
+</head>
+
+<body>
+	<div class="container">
+		<h1>주소 검색 API 과제</h1>
+		<p>주소 검색을 통해 우편번호 알아내기 & 주소 API 사이트 모음</p>
+	</div>
+	<br />
+	<hr />
+	현재 페이지 : <input type="number" id="currentPage" value="1" style="text-align:center;" />
+	<div style="height:5px;"></div>
+	페이지당 출력 개수 : <input type="number" id="countPerPage" value="5" style="text-align:center;" />
+	<hr /><br />
+	<input type="text" id="zipCode" value="" onClick="addressWindowOpen();" placeholder="00000" readonly />
+	<input type="button" onClick="addressWindowOpen();" value="우편번호 찾기" />
+	<div id="wrap">
+		<img id="closeBtn" src="/icon.png" onClick="addressWindowClose();" />
+		<div>
+			<input type="text" id="searchAddr" value="" onkeydown="enterSearch();" placeholder="도로명주소, 건물명 또는 지번 입력" />
+			<input type="button" onClick="getAddr();" value="주소검색" />
+		</div>
+		<div>
+			<div id="totoalOutcome">
+				검색결과 : <span id="totalCnt">0</span>
+			</div>
+			<table id="list"></table>
+		</div>
+		<div id="pagingList" style='text-align:center;'></div>
+	</div>
+	<div style="height:5px;"></div>
+	<input type="text" id="address" value="" placeholder="도로명 주소, 지번 주소" readonly />
+	<div style="height:5px;"></div>
+	<input type="text" id="detail" value="" placeholder="상세 주소지 입력" />
+	<br />
+	<br />
+	<li>
+		<a href="/manual.html">사용법</a>
+	</li>
+	<header id="mini_header">
+		<h1>API 사이트 모음</h1>
+	</header>
+	<nav id="main_gnb">
+		<ul class="left">
+			<li><a href="https://www.juso.go.kr/addrlink/devAddrLinkRequestGuide.do?menu=roadApi">도로명주소 API</a></li>
+			<li><a href="https://www.juso.go.kr/addrlink/devAddrLinkRequestGuide.do?menu=engRoadApi">영문주소 API</a></li>
+			<li><a href="https://www.juso.go.kr/addrlink/devAddrLinkRequestGuide.do?menu=coordApi">좌표제공 API</a></li>
+			<li><a href="https://www.juso.go.kr/addrlink/devAddrLinkRequestGuide.do?menu=mobileApi">모바일용 API</a></li>
+			<li><a href="https://www.juso.go.kr/addrlink/devAddrLinkRequestWrite.do?returnFn=write&cntcMenu=URL">API 신청하기</a></li>
+			<li><a href="https://www.juso.go.kr/addrlink/devAddrLinkRequestUse.do?menu=main&cPath=99MA">API 활용체험</a></li>
+		</ul>
+		<ul class="right">
+			<li><a href="https://www.juso.go.kr/addrlink/addressBuildDevNew.do?menu=mainJusoDb">도로명주소 DB</a></li>
+			<li><a href="https://www.juso.go.kr/addrlink/addressBuildDevNew.do?menu=mainJusoLayer">전자지도</a></li>
+		</ul>
+	</nav>
+	<div id='wrap1'>
+		<nav id="main_lnb">
+			<ul>
+				<li><a href="https://developers.kakao.com">카카오 개발자센터</a></li>
+				<li><a href="https://console.developers.google.com/apis/library?hl=ko&supportedpurview=project">구글 개발자센터</a></li>
+				<li><a href="https://developers.naver.com/main/">네이버 개발자센터</a></li>
+				<li><a href="https://developers.facebook.com">페이스북 개발자센터</a></li>
+				<li><a href="https://www.data.go.kr">공공 데이터포털</a></li>
+			</ul>
+		</nav>
+		<div id="content_wrap">
+			<div id="content">
+				<article>
+					<h1>API</h1>
+					<p>API(Application Programming Interface, 응용 프로그램 프로그래밍 인터페이스)는 응용 프로그램에서 사용할 수 있도록, 운영 체제나 프로그래밍 언어가 제공하는 기능을 제어할 수 있게 만든 인터페이스를 뜻한다. 주로 파일 제어, 창 제어, 화상 처리, 문자 제어 등을 위한 인터페이스를 제공한다.</p>
+
+				</article>
+				<article>
+					<h1>외부 데이터를 사용하여 풍부한 사용자 경험 창출하기</h1>
+					<p>API는 처음부터 개발하거나 유지 보수할 필요가 없는 외부 데이터 및 기능에 안전하고 즉각적으로 접속할 수 있게 해 줍니다. 예를 들면, 이커머스 기업에게는 온라인 결제가 가능 여부가 아주 중요합니다. 온라인 결제 시스템을 구축하는 대신 Stripe 또는 Square 같은 API 솔루션을 통합할 수 있습니다.</p>
+				</article>
+				<article>
+					<h1>워크플로우를 개선하여 보유 사용자 증가시키기</h1>
+					<p>데이터가 모바일이라면 다양한 소스에서 하나의 통합된 솔루션으로 데이터를 통합할 수 있습니다. 통합된 솔루션은 사용자의 참여를 높이고 사용자가 떨어져 나가는 것을 줄일 수 있습니다.</p>
+				</article>
+			</div>
+		</div>
+	</div>
+
+	<footer id="main_footer">
+		<h3>API 실습 마무리</h3>
+		<address>Choi Geon Hui</address>
+</body>
+
+</html>
