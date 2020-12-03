@@ -95,7 +95,7 @@
 			}
 
 			jQuery.ajax({
-				url: "http://www.juso.go.kr/addrlink/addrLinkApiJsonp.do"
+				url: "https://www.juso.go.kr/addrlink/addrLinkApiJsonp.do"
 				, type: "POST"
 				, data: {
 					confmKey: "devU01TX0FVVEgyMDIwMTIwMTIyMTMzMDExMDQ4ODE="
@@ -288,7 +288,7 @@
 	<input type="text" id="zipCode" value="" onClick="addressWindowOpen();" placeholder="00000" readonly />
 	<input type="button" onClick="addressWindowOpen();" value="우편번호 찾기" />
 	<div id="wrap">
-		<img id="closeBtn" src="/icon.png" onClick="addressWindowClose();" />
+		<img id="closeBtn" src="./icon.png" onClick="addressWindowClose();" />
 		<div>
 			<input type="text" id="searchAddr" value="" onkeydown="enterSearch();" placeholder="도로명주소, 건물명 또는 지번 입력" />
 			<input type="button" onClick="getAddr();" value="주소검색" />
